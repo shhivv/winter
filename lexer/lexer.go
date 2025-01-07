@@ -1,6 +1,8 @@
 package lexer
 
-import "winter/token"
+import (
+	"winter/token"
+)
 
 type Lexer struct {
 	input        string
@@ -22,7 +24,7 @@ func (l *Lexer) readChar() {
 
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
-
+	l.skipWhitespace()
 	switch l.ch {
 	case '=':
 		tok = newToken(token.ASSIGN, l.ch)
@@ -43,30 +45,53 @@ func (l *Lexer) NextToken() token.Token {
 	case 0:
 		tok.Literal = "" // string(0)
 		tok.Type = token.EOF
-  default:
-    if isLetter(l.ch){
-      tok.Literal = l.readIdentifier()
-      tok.Type  = token.LookupIdent(tok.Literal)
-      return tok // early return because readIdentifier already advances position
-    } else{
-      tok = newToken(token.ILLEGAL, l.ch)
-    }
+	default:
+		if isLetter(l.ch) {
+			tok.Literal = l.readIdentifier()
+			tok.Type = token.LookupIdent(tok.Literal)
+			return tok // early return because readIdentifier already advances position
+		} else if isDigit(l.ch) {
+			tok.Type = token.INT
+			tok.Literal = l.readNumber()
+			return tok
+		} else {
+			tok = newToken(token.ILLEGAL, l.ch)
+		}
 	}
 	l.readChar()
 	return tok
 }
+func (l *Lexer) skipWhitespace() {
+	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+		l.readChar()
+	}
+}
 
 // reads the next word until whitespace (can be a keyword or ident)
-func (l *Lexer) readIdentifier() string{
-  position := l.position
-  for isLetter(l.ch){
-    l.readChar()
-  }
+func (l *Lexer) readIdentifier() string {
+	position := l.position
+	for isLetter(l.ch) {
+		l.readChar()
+	}
 
-  return l.input[position:l.position]
+	return l.input[position:l.position]
 }
+
+func (l *Lexer) readNumber() string {
+	position := l.position
+	for isDigit(l.ch) {
+		l.readChar()
+	}
+
+	return l.input[position:l.position]
+}
+
 func isLetter(ch byte) bool {
-  return 'a' <= ch && ch >= 'z' || 'A' <= ch && ch >= 'Z' || ch == '_'
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
+}
+
+func isDigit(ch byte) bool {
+	return '0' <= ch && ch <= '9'
 }
 
 func newToken(tokenType token.TokenType, ch byte) token.Token {
