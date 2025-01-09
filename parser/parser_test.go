@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"monkey/ast"
-	"monkey/lexer"
+	"winter/ast"
+	"winter/lexer"
 	"testing"
 )
 
