@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 	"winter/ast"
 	"winter/lexer"
 	"winter/token"
@@ -13,15 +14,16 @@ type (
 )
 
 const (
-  _ int = iota
-  LOWEST
-  EQUALS 
-  LESSGREATER
-  SUM 
-  PRODUCT
-  PREFIX 
-  CALL // foo(x)
+	_ int = iota
+	LOWEST
+	EQUALS
+	LESSGREATER
+	SUM
+	PRODUCT
+	PREFIX
+	CALL // foo(x)
 )
+
 type Parser struct {
 	l         *lexer.Lexer
 	errors    []string
@@ -38,13 +40,28 @@ func New(l *lexer.Lexer) *Parser {
 	p.nextToken()
 	p.nextToken()
 
-  p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
-  p.registerPrefix(token.IDENT, p.parseIdentifier)
+	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
+	p.registerPrefix(token.IDENT, p.parseIdentifier)
+	p.registerPrefix(token.INT, p.parseIntegerLiteral)
 	return p
 }
 
 func (p *Parser) parseIdentifier() ast.Expression {
-  return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+}
+
+func (p *Parser) parseIntegerLiteral() ast.Expression {
+	lit := &ast.IntegerLiteral{Token: p.curToken}
+
+	value, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
+	if err != nil {
+		msg := fmt.Sprintf("failed to parse %q as integer", p.curToken.Literal)
+		p.errors = append(p.errors, msg)
+		return nil
+	}
+
+	lit.Value = value
+	return lit
 }
 func (p *Parser) Errors() []string {
 	return p.errors
@@ -114,25 +131,25 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 }
 
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
-  stmt := &ast.ExpressionStatement{Token: p.curToken}
-  stmt.Expression = p.parseExpression(LOWEST)
+	stmt := &ast.ExpressionStatement{Token: p.curToken}
+	stmt.Expression = p.parseExpression(LOWEST)
 
-  if p.peekTokenIs(token.SEMICOLON){
-    p.nextToken()
-  }
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
 
-  return stmt
+	return stmt
 }
 
 func (p *Parser) parseExpression(precedence int) ast.Expression {
-  prefix := p.prefixParseFns[p.curToken.Type]
-  if prefix == nil {
-    return nil
-  }
+	prefix := p.prefixParseFns[p.curToken.Type]
+	if prefix == nil {
+		return nil
+	}
 
-  leftExp := prefix()
+	leftExp := prefix()
 
-  return leftExp
+	return leftExp
 }
 func (p *Parser) curTokenIs(t token.TokenType) bool {
 	return p.curToken.Type == t
